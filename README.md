@@ -46,6 +46,10 @@ Requires **Obsidian 1.13.7+**, desktop only. Windows support is unverified.
 
 ## Changelog
 
+### 1000.8.6
+
+- Pictures: take a screenshot with your system tool (or copy an image anywhere), then press Ctrl+V in the PDF. The picture lands under the pointer or in the middle of the visible page. You can also insert a file from the toolbar (picture button) or the right-click menu. Drag to move, corner handles to resize in proportion (Shift for free resizing), right-click to turn by 90°, lock, copy, duplicate or delete. Copied pictures paste into other apps as PNG. Pictures are saved as standard stamp annotations that other PDF readers show.
+
 ### 1000.8.5
 
 - Right-click menu in the editor: cut, copy, paste at the clicked spot, duplicate and delete text boxes, drawings and shapes; turn shapes by 90°, flip and lock them; recolour, comment or delete highlights and notes; add a text box or note where you clicked. Ctrl+C/X/V/D work for a selected shape. Selected PDF text keeps Obsidian's own menu.
