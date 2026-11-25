@@ -46,6 +46,10 @@ Requires **Obsidian 1.13.7+**, desktop only. Windows support is unverified.
 
 ## Changelog
 
+### 1000.8.5
+
+- Right-click menu in the editor: cut, copy, paste at the clicked spot, duplicate and delete text boxes, drawings and shapes; turn shapes by 90°, flip and lock them; recolour, comment or delete highlights and notes; add a text box or note where you clicked. Ctrl+C/X/V/D work for a selected shape. Selected PDF text keeps Obsidian's own menu.
+
 ### 1000.8.4
 
 - Zooming keeps pages centred: pages narrower than the view are centred, and the zoom buttons zoom about the middle of the view.
