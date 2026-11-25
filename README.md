@@ -2,6 +2,8 @@
 
 Write, fill answers, highlight and draw on PDFs without leaving Obsidian. Edit in PDF tabs, notes and pop-out windows.
 
+> **Extended personal build** of [holtsdav/PDF-Editor](https://github.com/holtsdav/PDF-Editor). It adds checkboxes, radio buttons and dropdowns, text highlights and comments (also for annotations made in other apps), a highlights sidebar with export to a note, bulleted and numbered lists, shapes, arrow-key page turning and faster saving. PDFs open in Obsidian's own viewer by default; switch editing on with the pencil button in the PDF tab. Automated tests pass; the additions have not yet been checked in the Obsidian app itself, so keep backups.
+
 ### Write and fill answers
 
 <img src="assets/demos/text-and-answers.gif" alt="Add text and fill detected answer lines" width="480">
@@ -28,6 +30,10 @@ Select printed text to copy it. Zoom with the viewer controls or **Cmd/Ctrl + wh
 
 ## Get started
 
+**This extended build:** install [BRAT](https://github.com/TfTHacker/obsidian42-brat), choose **Add beta plugin** and enter `milousparks/PDF-Editor`. BRAT installs and updates the latest release from this fork. The version number is set high so that an update of the original plugin does not replace it.
+
+**Original plugin:**
+
 1. Download `main.js`, `manifest.json` and `styles.css` from the [latest release](https://github.com/holtsdav/PDF-Editor/releases/latest).
 2. Put them in `<your vault>/.obsidian/plugins/pdf-editor/`.
 3. Enable **PDF Editor** under **Settings → Community plugins**.
@@ -39,6 +45,20 @@ Requires **Obsidian 1.13.7+**, desktop only. Windows support is unverified.
 [MIT license](LICENSE) · [Third-party credits and licenses](THIRD_PARTY_NOTICES.txt)
 
 ## Changelog
+
+### 1000.8.2
+
+Extended personal build on top of 0.8.2:
+
+- Fill checkboxes, radio buttons, dropdowns and single-select list boxes.
+- Highlight selected PDF text (toolbar button or the bar next to the selection; pressing again removes it) and add comments or sticky notes, saved as standard PDF annotations. Highlights and notes made in other apps can be edited too.
+- Highlights sidebar listing highlights and comments by page, with export to a note that links back to each page.
+- Bulleted and numbered lists with indentation in text boxes (toolbar buttons, Enter, Tab and Shift+Tab).
+- Rectangles, ellipses, lines and arrows, outlined or filled.
+- Left and right arrow keys turn whole pages.
+- PDFs open in Obsidian's viewer (keeping plugins such as PDF++) until editing is switched on per PDF.
+- Bullets pasted from Word or other PDFs are replaced instead of blocking the save.
+- Faster saving on large forms and lighter refreshes while typing.
 
 ### 0.8.2
 
