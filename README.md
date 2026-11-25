@@ -46,6 +46,10 @@ Requires **Obsidian 1.13.7+**, desktop only. Windows support is unverified.
 
 ## Changelog
 
+### 1000.8.4
+
+- Zooming keeps pages centred: pages narrower than the view are centred, and the zoom buttons zoom about the middle of the view.
+
 ### 1000.8.3
 
 - Rotate rectangles and ellipses with the round handle above a selected shape (Shift snaps to 15°). Other PDF readers show the turned shape; editing it there may straighten it.
