@@ -46,6 +46,10 @@ Requires **Obsidian 1.13.7+**, desktop only. Windows support is unverified.
 
 ## Changelog
 
+### 1000.8.3
+
+- Rotate rectangles and ellipses with the round handle above a selected shape (Shift snaps to 15°). Other PDF readers show the turned shape; editing it there may straighten it.
+
 ### 1000.8.2
 
 Extended personal build on top of 0.8.2:
