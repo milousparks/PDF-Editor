@@ -46,6 +46,10 @@ Requires **Obsidian 1.13.7+**, desktop only. Windows support is unverified.
 
 ## Changelog
 
+### 1000.8.17
+
+- The text cursor stays visible: a dark I-beam with a white outline over PDF text and text boxes (light cursor themes showed a white one on white paper), and the caret switches to a dark colour when the text colour is white or pale.
+
 ### 1000.8.16
 
 - Comment boxes accept the cursor again after you clicked elsewhere (another window, the toolbar) and come back to keep writing.
