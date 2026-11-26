@@ -46,6 +46,10 @@ Requires **Obsidian 1.13.7+**, desktop only. Windows support is unverified.
 
 ## Changelog
 
+### 1000.8.9
+
+- Large PDFs open faster: the background copy under the editor is built by appending to the original instead of rewriting the whole file (about 2.5× faster for a 185-page, 9 MB document), or is the file itself when there is nothing to hide.
+
 ### 1000.8.8
 
 - Incremental saving: the original PDF bytes stay untouched and each save appends only the changed objects (like Acrobat). Repeated saves in one session replace their own update instead of stacking; after 12 editing sessions, or when updates exceed 15 % of the file, the PDF is rewritten once to stay compact.
