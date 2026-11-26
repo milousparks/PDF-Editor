@@ -46,6 +46,10 @@ Requires **Obsidian 1.13.7+**, desktop only. Windows support is unverified.
 
 ## Changelog
 
+### 1000.8.16
+
+- Comment boxes accept the cursor again after you clicked elsewhere (another window, the toolbar) and come back to keep writing.
+
 ### 1000.8.15
 
 - Highlights are easier to read: they now blend with the page like a real highlighter (multiply), so printed text under them stays black instead of being washed out, and they look the same as in other PDF readers.
