@@ -46,6 +46,10 @@ Requires **Obsidian 1.13.7+**, desktop only. Windows support is unverified.
 
 ## Changelog
 
+### 1000.8.12
+
+- No more lag when you click outside a text box (which starts saving) and then keep typing: the save no longer rebuilds the PDF after every keystroke; newer text is saved by the next autosave.
+
 ### 1000.8.11
 
 - Typing in text boxes and selecting them no longer stutters: text measuring no longer makes Obsidian lay out the whole window on every keystroke, and repeated refreshes no longer rewrite unchanged attributes (which made the browser restyle and repaint each time).
