@@ -46,6 +46,13 @@ Requires **Obsidian 1.13.7+**, desktop only. Windows support is unverified.
 
 ## Changelog
 
+### 1000.8.19
+
+- Reworked menus. Consistent names (Delete, Image, Note, Comment, Color) and shortcuts in every tooltip; new commands for each tool and for highlighting, underlining and striking through, so you can give them hotkeys.
+- Right-click menu in sections with Delete last (in red); new: Properties, Edit text, Bring to front / Send to back, Align and Distribute for groups, Copy text and Copy as quote with link, Turn into highlight / underline / strikethrough, Original size and Save image to vault.
+- Toolbar grouped with separators; Save moved to More options (Ctrl+S still works); Delete only shows with a selection; the Shape tool shows its shape; one shared line palette; the color menu has rows for highlights and lines.
+- Settings in sections, with two new ones: highlight strength and autosave delay.
+
 ### 1000.8.18
 
 - Underline and strike through selected PDF text with the new toolbar buttons (or the bar next to the selection); pressing again removes it. Saved as standard annotations other PDF readers show; colours red, blue, green or black; commentable and listed in the highlights sidebar and export.
