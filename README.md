@@ -46,6 +46,10 @@ Requires **Obsidian 1.13.7+**, desktop only. Windows support is unverified.
 
 ## Changelog
 
+### 1000.8.22
+
+- Encrypted PDFs that open without a password (for example ones with copy or print restrictions) can now be edited. They stay encrypted with the same method and passwords. PDFs that need a password to open stay read only.
+
 ### 1000.8.21
 
 - Copy with link (right-click a highlight) now writes a PDF++-style callout: `> [!PDF|yellow] [[file.pdf#page=175|file, p.175]]`, then the marked text and the comment.
