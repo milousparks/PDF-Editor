@@ -46,6 +46,10 @@ Requires **Obsidian 1.13.7+**, desktop only. Windows support is unverified.
 
 ## Changelog
 
+### 1000.8.15
+
+- Highlights are easier to read: they now blend with the page like a real highlighter (multiply), so printed text under them stays black instead of being washed out, and they look the same as in other PDF readers.
+
 ### 1000.8.14
 
 - Faster saving: the original PDF is parsed once per session instead of on every save, and incremental saves are verified by reading back only the appended update (about 3× faster on a 9 MB, 185-page PDF).
