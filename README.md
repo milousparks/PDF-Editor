@@ -46,6 +46,10 @@ Requires **Obsidian 1.13.7+**, desktop only. Windows support is unverified.
 
 ## Changelog
 
+### 1000.8.11
+
+- Typing in text boxes and selecting them no longer stutters: text measuring no longer makes Obsidian lay out the whole window on every keystroke, and repeated refreshes no longer rewrite unchanged attributes (which made the browser restyle and repaint each time).
+
 ### 1000.8.10
 
 - Typing stays smooth while autosave runs: loading and checking the PDF now pause regularly for input, so the longest hitch on large PDFs drops from 100–270 ms to about 30 ms.
