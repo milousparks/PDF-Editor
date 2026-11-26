@@ -46,6 +46,10 @@ Requires **Obsidian 1.13.7+**, desktop only. Windows support is unverified.
 
 ## Changelog
 
+### 1000.8.20
+
+- Fix: Delete and Cut in the right-click menu now work when several objects (for example drawings) are selected.
+
 ### 1000.8.19
 
 - Reworked menus. Consistent names (Delete, Image, Note, Comment, Color) and shortcuts in every tooltip; new commands for each tool and for highlighting, underlining and striking through, so you can give them hotkeys.
