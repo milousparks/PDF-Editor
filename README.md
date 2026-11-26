@@ -46,6 +46,10 @@ Requires **Obsidian 1.13.7+**, desktop only. Windows support is unverified.
 
 ## Changelog
 
+### 1000.8.13
+
+- Select several objects at once, including shapes and pictures: drag a rectangle over empty space (or hold Shift and drag over printed text), or Shift+click objects. Groups move, copy, paste, duplicate and delete together with one undo step; locked shapes and pictures stay out.
+
 ### 1000.8.12
 
 - No more lag when you click outside a text box (which starts saving) and then keep typing: the save no longer rebuilds the PDF after every keystroke; newer text is saved by the next autosave.
