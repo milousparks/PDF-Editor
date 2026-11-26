@@ -294,7 +294,9 @@ export class ObjectSelection extends Component {
         return;
       }
       const target = event.target as Element;
-      if (target.closest('[data-ink-resize]')) {
+      // Comment popovers and other editor controls on the page keep their own pointer
+      // handling; starting a marquee there would block focusing their text fields.
+      if (target.closest('[data-ink-resize], .pfs-mark-ui')) {
         return;
       }
       // Shapes and pictures join a group with Shift+click, and drag the group when selected.
