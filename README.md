@@ -46,6 +46,10 @@ Requires **Obsidian 1.13.7+**, desktop only. Windows support is unverified.
 
 ## Changelog
 
+### 1000.8.21
+
+- Copy with link (right-click a highlight) now writes a PDF++-style callout: `> [!PDF|yellow] [[file.pdf#page=175|file, p.175]]`, then the marked text and the comment.
+
 ### 1000.8.20
 
 - Fix: Delete and Cut in the right-click menu now work when several objects (for example drawings) are selected.
@@ -53,7 +57,7 @@ Requires **Obsidian 1.13.7+**, desktop only. Windows support is unverified.
 ### 1000.8.19
 
 - Reworked menus. Consistent names (Delete, Image, Note, Comment, Color) and shortcuts in every tooltip; new commands for each tool and for highlighting, underlining and striking through, so you can give them hotkeys.
-- Right-click menu in sections with Delete last (in red); new: Properties, Edit text, Bring to front / Send to back, Align and Distribute for groups, Copy text and Copy as quote with link, Turn into highlight / underline / strikethrough, Original size and Save image to vault.
+- Right-click menu in sections with Delete last (in red); new: Properties, Edit text, Bring to front / Send to back, Align and Distribute for groups, Copy text and Copy with link, Turn into highlight / underline / strikethrough, Original size and Save image to vault.
 - Toolbar grouped with separators; Save moved to More options (Ctrl+S still works); Delete only shows with a selection; the Shape tool shows its shape; one shared line palette; the color menu has rows for highlights and lines.
 - Settings in sections, with two new ones: highlight strength and autosave delay.
 
