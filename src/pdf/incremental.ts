@@ -1,5 +1,6 @@
 import { PDFArray, PDFContext, PDFDict, PDFNumber, PDFRef, PDFStream } from 'pdf-lib';
 import type { PDFDocument, PDFObject } from 'pdf-lib';
+import { pdfSecurity } from './pdf-load.ts';
 
 /**
  * Incremental saving: keep the original PDF bytes and append only the objects this
@@ -200,7 +201,8 @@ export function incrementalBytes(
   const context = pdf.context;
   const changed = changedObjects(pdf, tracker);
   const { Root, Info, ID, Encrypt } = context.trailerInfo;
-  if (!changed.length || Encrypt || !(Root instanceof PDFRef)) {
+  const security = pdfSecurity(pdf);
+  if (!changed.length || (Encrypt && !security) || !(Root instanceof PDFRef)) {
     return undefined;
   }
   const chunks: Uint8Array[] = [];
@@ -217,7 +219,8 @@ export function incrementalBytes(
   for (const [ref, object] of changed) {
     offsets.set(ref, size);
     push(encoder.encode(`${ref.objectNumber} ${ref.generationNumber} obj\n`));
-    push(serialize(object));
+    // Encrypted files: each appended object is encrypted with the document's key.
+    push(serialize(security ? security.encrypt(ref, object, context) : object));
     push(encoder.encode('\nendobj\n'));
   }
   const trailer: Record<string, PDFObject> = {
@@ -229,6 +232,9 @@ export function incrementalBytes(
   }
   if (ID) {
     trailer.ID = ID as PDFObject;
+  }
+  if (Encrypt) {
+    trailer.Encrypt = Encrypt as PDFObject;
   }
   const xrefAt = size;
   if (section.classic) {

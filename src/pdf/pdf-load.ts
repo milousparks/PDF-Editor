@@ -11,9 +11,12 @@ import {
   PDFRawStream,
   PDFRef,
   PDFStream,
+  PDFWriter,
   decodePDFRawStream,
 } from 'pdf-lib';
 import type { PDFObject, SaveOptions } from 'pdf-lib';
+import { openSecurity } from './pdf-crypt.ts';
+import type { Security } from './pdf-crypt.ts';
 
 const MAX_OBJECT_COUNT = 1_000_000;
 const MAX_GENERATION = 65535;
@@ -360,8 +363,343 @@ function populateCatalog(pdf: PDFDocument): void {
 /** Let input and painting run between chunks of parsing and writing large PDFs. */
 const OBJECTS_PER_TICK = 400;
 
-export async function loadPdfDocument(bytes: Uint8Array): Promise<PDFDocument> {
+/** Decryption keys of loaded encrypted documents; saves encrypt with the same key. */
+const securities = new WeakMap<PDFContext, Security>();
+
+export function pdfSecurity(pdf: PDFDocument): Security | undefined {
+  return securities.get(pdf.context);
+}
+
+interface FullEntry {
+  /** 1: at a byte offset; 2: inside an object stream. */
+  type: 1 | 2;
+  offset: number;
+  generation: number;
+  /** Object stream number and index for type 2. */
+  stream?: number;
+  index?: number;
+}
+
+/** Decode a stream, undoing PNG predictors (common in cross-reference streams). */
+function decodeWithPredictor(stream: PDFRawStream): Uint8Array {
+  const data = decodePDFRawStream(stream).decode();
+  const params = stream.dict.lookupMaybe(PDFName.of('DecodeParms'), PDFDict);
+  const predictor = params?.lookupMaybe(PDFName.of('Predictor'), PDFNumber)?.asNumber() ?? 1;
+  if (predictor < 10) {
+    return data;
+  }
+  const colors = params?.lookupMaybe(PDFName.of('Colors'), PDFNumber)?.asNumber() ?? 1;
+  const bits = params?.lookupMaybe(PDFName.of('BitsPerComponent'), PDFNumber)?.asNumber() ?? 8;
+  const columns = params?.lookupMaybe(PDFName.of('Columns'), PDFNumber)?.asNumber() ?? 1;
+  const pixel = Math.max(1, Math.ceil((colors * bits) / 8));
+  const width = Math.ceil((colors * bits * columns) / 8);
+  const rows = Math.floor(data.length / (width + 1));
+  const out = new Uint8Array(rows * width);
+  for (let r = 0; r < rows; r++) {
+    const filter = data[r * (width + 1)]!;
+    const row = data.subarray(r * (width + 1) + 1, (r + 1) * (width + 1));
+    const at = r * width;
+    for (let i = 0; i < width; i++) {
+      const left = i >= pixel ? out[at + i - pixel]! : 0;
+      const up = r ? out[at - width + i]! : 0;
+      const upLeft = r && i >= pixel ? out[at - width + i - pixel]! : 0;
+      let value = row[i]!;
+      if (filter === 1) {
+        value += left;
+      } else if (filter === 2) {
+        value += up;
+      } else if (filter === 3) {
+        value += (left + up) >> 1;
+      } else if (filter === 4) {
+        const p = left + up - upLeft;
+        const pa = Math.abs(p - left);
+        const pb = Math.abs(p - up);
+        const pc = Math.abs(p - upLeft);
+        value += pa <= pb && pa <= pc ? left : pb <= pc ? up : upLeft;
+      }
+      out[at + i] = value & 255;
+    }
+  }
+  return out;
+}
+
+/** One cross-reference stream section, including compressed (type 2) entries. */
+function readStreamSection(
+  bytes: Uint8Array,
+  offset: number,
+): { entries: Map<number, FullEntry | null>; trailer: PDFDict } {
+  const header = /^(\d+)[\s\0]+(\d+)[\s\0]+obj\b/.exec(
+    decoder.decode(bytes.subarray(offset, offset + OBJECT_HEADER_SCAN_BYTES)),
+  );
+  if (!header) {
+    throw new Error('Invalid PDF cross-reference stream.');
+  }
+  const stream = PDFObjectParser.forBytes(
+    bytes.subarray(offset + header[0].length),
+    PDFContext.create(),
+  ).parseObject();
+  if (!(stream instanceof PDFRawStream)) {
+    throw new Error('Invalid PDF cross-reference stream.');
+  }
+  const number = (value: PDFObject | undefined) =>
+    value instanceof PDFNumber ? value.asNumber() : NaN;
+  const widths = stream.dict.lookup(PDFName.of('W'), PDFArray).asArray().map(number);
+  const size = number(stream.dict.get(PDFName.of('Size')));
+  const ranges = stream.dict.lookupMaybe(PDFName.of('Index'), PDFArray)?.asArray().map(number) ?? [
+    0,
+    size,
+  ];
+  if (widths.length !== 3 || widths.some((w) => !(w >= 0 && w <= 8)) || ranges.some(isNaN)) {
+    throw new Error('Invalid PDF cross-reference stream.');
+  }
+  const data = decodeWithPredictor(stream);
+  const row = widths[0]! + widths[1]! + widths[2]!;
+  const field = (position: number, width: number) => {
+    let value = 0;
+    for (let i = 0; i < width; i++) {
+      value = value * 256 + (data[position + i] ?? 0);
+    }
+    return value;
+  };
+  const entries = new Map<number, FullEntry | null>();
+  let position = 0;
+  for (let r = 0; r + 1 < ranges.length; r += 2) {
+    for (
+      let n = ranges[r]!;
+      n < ranges[r]! + ranges[r + 1]! && position + row <= data.length;
+      n++
+    ) {
+      const type = widths[0] ? field(position, widths[0]) : 1;
+      const second = field(position + widths[0]!, widths[1]!);
+      const third = field(position + widths[0]! + widths[1]!, widths[2]!);
+      position += row;
+      entries.set(
+        n,
+        type === 1
+          ? { type: 1, offset: second, generation: third }
+          : type === 2
+            ? { type: 2, offset: 0, generation: 0, stream: second, index: third }
+            : null,
+      );
+    }
+  }
+  return { entries, trailer: stream.dict };
+}
+
+/** Every revision's tables and streams (hybrid files included), newest entry first. */
+function readFullIndex(
+  bytes: Uint8Array,
+  firstOffset: number,
+  context: PDFContext,
+): { entries: Map<number, FullEntry>; trailer: PDFDict } {
+  const entries = new Map<number, FullEntry | null>();
+  let newest: PDFDict | undefined;
+  const visited = new Set<number>();
+  const pending = [firstOffset];
+  while (pending.length) {
+    const offset = pending.shift()!;
+    if (visited.has(offset) || offset < 0 || offset >= bytes.length) {
+      continue;
+    }
+    visited.add(offset);
+    let section: { entries: Map<number, FullEntry | null>; trailer: PDFDict };
+    if (hasClassicIndex(bytes, offset)) {
+      const classic = readClassicSection(bytes, offset, context);
+      section = {
+        trailer: classic.trailer,
+        entries: new Map(
+          [...classic.entries].map(([n, entry]) => [
+            n,
+            entry.active ? { type: 1, offset: entry.offset, generation: entry.generation } : null,
+          ]),
+        ),
+      };
+      // Hybrid files: the table wins, the stream adds compressed objects.
+      const stream = section.trailer.get(PDFName.of('XRefStm'));
+      if (stream instanceof PDFNumber) {
+        for (const [n, entry] of readStreamSection(bytes, stream.asNumber()).entries) {
+          if (!section.entries.has(n)) {
+            section.entries.set(n, entry);
+          }
+        }
+      }
+    } else {
+      section = readStreamSection(bytes, offset);
+    }
+    newest ??= section.trailer;
+    for (const [n, entry] of section.entries) {
+      if (!entries.has(n)) {
+        entries.set(n, entry);
+      }
+    }
+    const previous = section.trailer.get(PDFName.of('Prev'));
+    if (previous instanceof PDFNumber) {
+      pending.push(previous.asNumber());
+    }
+  }
+  const active = new Map<number, FullEntry>();
+  for (const [n, entry] of entries) {
+    if (entry && n > 0) {
+      active.set(n, entry);
+    }
+  }
+  return { entries: active, trailer: newest! };
+}
+
+function hasEncryption(bytes: Uint8Array, offset: number): boolean {
+  try {
+    const trailer = hasClassicIndex(bytes, offset)
+      ? readClassicSection(bytes, offset, PDFContext.create()).trailer
+      : readStreamSection(bytes, offset).trailer;
+    const value = trailer.get(PDFName.of('Encrypt'));
+    return value !== undefined && value !== PDFNull;
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * Encrypted documents: read every object (object streams included), decrypt it with
+ * the key from the empty user password (or `password`) and remember the key, so saves
+ * keep the file encrypted. Object and cross-reference streams are not kept: saves
+ * write each object on its own.
+ */
+async function loadEncryptedDocument(
+  bytes: Uint8Array,
+  offset: number,
+  password?: string,
+): Promise<PDFDocument> {
+  const pdf = await PDFDocument.create({ updateMetadata: false });
+  const context = pdf.context;
+  for (const [ref] of context.enumerateIndirectObjects()) {
+    context.delete(ref);
+  }
+  const version = /%PDF-(\d+)\.(\d+)/.exec(decoder.decode(bytes.subarray(0, 1024)));
+  if (!version) {
+    throw new Error('Invalid PDF header.');
+  }
+  context.header = PDFHeader.forVersion(Number(version[1]), Number(version[2]));
+  const { entries, trailer } = readFullIndex(bytes, offset, context);
+  const size = trailer.get(PDFName.of('Size'));
+  const count = size instanceof PDFNumber ? size.asNumber() : 0;
+
+  // The /Encrypt dictionary and the first file identifier give the key.
+  const encryptValue = trailer.get(PDFName.of('Encrypt'));
+  let encryptRef: PDFRef | undefined;
+  let encrypt: PDFObject | undefined = encryptValue;
+  if (encryptValue instanceof PDFRef) {
+    encryptRef = encryptValue;
+    const entry = entries.get(encryptValue.objectNumber);
+    if (entry?.type !== 1) {
+      throw new Error('Invalid PDF encryption dictionary.');
+    }
+    encrypt = readIndexedObject(bytes, context, encryptValue.objectNumber, {
+      ...entry,
+      active: true,
+    });
+  }
+  const ids = trailer.get(PDFName.of('ID'));
+  const first = ids instanceof PDFArray ? ids.get(0) : undefined;
+  if (!(encrypt instanceof PDFDict)) {
+    throw new Error('Invalid PDF encryption dictionary.');
+  }
+  const security = openSecurity(
+    encrypt,
+    encryptRef,
+    first && 'asBytes' in first
+      ? (first as unknown as { asBytes(): Uint8Array }).asBytes()
+      : new Uint8Array(),
+    password,
+  );
+
+  const streams = new Map<number, [number, number][]>();
+  let position = 0;
+  for (const [n, entry] of [...entries].sort((a, b) => a[1].offset - b[1].offset)) {
+    if (entry.type === 2) {
+      const list = streams.get(entry.stream!) ?? [];
+      list.push([n, entry.index!]);
+      streams.set(entry.stream!, list);
+      continue;
+    }
+    if (++position % OBJECTS_PER_TICK === 0) {
+      await new Promise((resolve) => setTimeout(resolve, 0));
+    }
+    if (encryptRef?.objectNumber === n) {
+      continue;
+    }
+    const ref = PDFRef.of(n, entry.generation);
+    const object = readIndexedObject(bytes, context, n, { ...entry, active: true });
+    const type =
+      object instanceof PDFStream ? object.dict.get(PDFName.of('Type'))?.toString() : undefined;
+    if (type === '/XRef') {
+      context.delete(ref);
+      continue;
+    }
+    context.assign(ref, security.decrypt(ref, object, context));
+  }
+  // Objects inside object streams are not encrypted individually: the stream was.
+  for (const [number, members] of streams) {
+    const ref = PDFRef.of(number, 0);
+    const stream = context.lookup(ref);
+    if (!(stream instanceof PDFRawStream)) {
+      continue;
+    }
+    const data = decodeWithPredictor(stream);
+    const n = stream.dict.lookup(PDFName.of('N'), PDFNumber).asNumber();
+    const firstAt = stream.dict.lookup(PDFName.of('First'), PDFNumber).asNumber();
+    const header = decoder
+      .decode(data.subarray(0, firstAt))
+      .trim()
+      .split(/[\s\0]+/)
+      .map(Number);
+    for (const [member, index] of members) {
+      if (index >= n) {
+        continue;
+      }
+      const at = header[index * 2 + 1]!;
+      const object = PDFObjectParser.forBytes(data.subarray(firstAt + at), context).parseObject();
+      context.assign(PDFRef.of(member, 0), object);
+    }
+    context.delete(ref);
+  }
+  context.largestObjectNumber = Math.max(context.largestObjectNumber, count - 1);
+  context.trailerInfo = {
+    Root: trailer.get(PDFName.of('Root')),
+    Info: trailer.get(PDFName.of('Info')),
+    ID: ids,
+    Encrypt: encryptValue,
+  };
+  securities.set(context, security);
+  populateCatalog(pdf);
+  return pdf;
+}
+
+/**
+ * Save a whole document. Encrypted documents are written with every object encrypted
+ * again with their own key (and without object streams).
+ */
+export async function savePdfDocument(pdf: PDFDocument): Promise<Uint8Array> {
+  const security = securities.get(pdf.context);
+  if (!security) {
+    return pdf.save(pdfSaveOptions(pdf));
+  }
+  await pdf.flush();
+  const source = pdf.context;
+  const target = PDFContext.create();
+  target.header = source.header;
+  for (const [ref, object] of source.enumerateIndirectObjects()) {
+    target.assign(ref, security.encrypt(ref, object, target));
+  }
+  target.largestObjectNumber = source.largestObjectNumber;
+  target.trailerInfo = { ...source.trailerInfo };
+  return PDFWriter.forContext(target, OBJECTS_PER_TICK).serializeToBuffer();
+}
+
+export async function loadPdfDocument(bytes: Uint8Array, password?: string): Promise<PDFDocument> {
   const offset = readFooterOffset(bytes);
+  if (offset !== undefined && hasEncryption(bytes, offset)) {
+    return loadEncryptedDocument(bytes, offset, password);
+  }
   if (offset === undefined) {
     return PDFDocument.load(bytes, { updateMetadata: false, parseSpeed: OBJECTS_PER_TICK });
   }
@@ -460,6 +798,10 @@ async function copyDocument(source: PDFDocument): Promise<PDFDocument> {
     Encrypt,
   };
   populateCatalog(pdf);
+  const security = securities.get(source.context);
+  if (security) {
+    securities.set(context, security);
+  }
   if (classicSerialization.has(source)) {
     classicSerialization.add(pdf);
   }
@@ -555,7 +897,12 @@ export async function loadAppendedUpdate(
     if (entry.offset < seed.length) {
       throw new Error('The appended PDF update points into the original file.');
     }
-    readIndexedObject(output, context, number, entry);
+    const object = readIndexedObject(output, context, number, entry);
+    const security = securities.get(context);
+    if (security) {
+      const ref = PDFRef.of(number, entry.generation);
+      context.assign(ref, security.decrypt(ref, object, context));
+    }
     context.largestObjectNumber = Math.max(context.largestObjectNumber, number);
   }
   const root = trailer.get(PDFName.of('Root'));

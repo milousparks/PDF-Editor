@@ -26,8 +26,8 @@ import { referencedObjects, pruneReplacedObjects } from './object-references.ts'
 import {
   loadAppendedUpdate,
   loadPdfDocument,
+  savePdfDocument,
   loadPdfDocumentReusing,
-  pdfSaveOptions,
 } from './pdf-load.ts';
 import { validRuledLayout } from './ruled-text.ts';
 import {
@@ -887,7 +887,7 @@ export async function writeTextPdf(
     pruneReplacedObjects(pdf, referencedObjects(pdf, [...replaced]));
     await pause();
     // Append only what changed to the original bytes; rewrite the file when that is not possible.
-    bytes = incrementalBytes(seed, pdf, tracking!.tracker) ?? (await pdf.save(pdfSaveOptions(pdf)));
+    bytes = incrementalBytes(seed, pdf, tracking!.tracker) ?? (await savePdfDocument(pdf));
   } finally {
     tracking?.stop();
   }
@@ -1061,7 +1061,7 @@ async function displayCopy(
   if (!hasChanges(pdf, tracker)) {
     return seed;
   }
-  return incrementalBytes(seed, pdf, tracker, true) ?? pdf.save(pdfSaveOptions(pdf));
+  return incrementalBytes(seed, pdf, tracker, true) ?? savePdfDocument(pdf);
 }
 function readInkId(dict: PDFDict): string | undefined {
   const value = dict.lookup(PDFName.of('NM'));
