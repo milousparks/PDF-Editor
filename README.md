@@ -46,6 +46,10 @@ Requires **Obsidian 1.13.7+**, desktop only. Windows support is unverified.
 
 ## Changelog
 
+### 1000.8.14
+
+- Faster saving: the original PDF is parsed once per session instead of on every save, and incremental saves are verified by reading back only the appended update (about 3× faster on a 9 MB, 185-page PDF).
+
 ### 1000.8.13
 
 - Select several objects at once, including shapes and pictures: drag a rectangle over empty space (or hold Shift and drag over printed text), or Shift+click objects. Groups move, copy, paste, duplicate and delete together with one undo step; locked shapes and pictures stay out.
