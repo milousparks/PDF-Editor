@@ -46,6 +46,10 @@ Requires **Obsidian 1.13.7+**, desktop only. Windows support is unverified.
 
 ## Changelog
 
+### 1000.8.10
+
+- Typing stays smooth while autosave runs: loading and checking the PDF now pause regularly for input, so the longest hitch on large PDFs drops from 100–270 ms to about 30 ms.
+
 ### 1000.8.9
 
 - Large PDFs open faster: the background copy under the editor is built by appending to the original instead of rewriting the whole file (about 2.5× faster for a 185-page, 9 MB document), or is the file itself when there is nothing to hide.
