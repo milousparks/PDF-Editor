@@ -46,6 +46,10 @@ Requires **Obsidian 1.13.7+**, desktop only. Windows support is unverified.
 
 ## Changelog
 
+### 1000.8.8
+
+- Incremental saving: the original PDF bytes stay untouched and each save appends only the changed objects (like Acrobat). Repeated saves in one session replace their own update instead of stacking; after 12 editing sessions, or when updates exceed 15 % of the file, the PDF is rewritten once to stay compact.
+
 ### 1000.8.7
 
 - Smoother: drawing and dragging shapes only redraws the shape being moved; autosave no longer freezes the editor on large PDFs (it pauses for input while it works and is about a third faster); pasted pictures are not re-encoded on every save; the right-click menu opens immediately.
