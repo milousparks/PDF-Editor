@@ -46,6 +46,10 @@ Requires **Obsidian 1.13.7+**, desktop only. Windows support is unverified.
 
 ## Changelog
 
+### 1000.8.7
+
+- Smoother: drawing and dragging shapes only redraws the shape being moved; autosave no longer freezes the editor on large PDFs (it pauses for input while it works and is about a third faster); pasted pictures are not re-encoded on every save; the right-click menu opens immediately.
+
 ### 1000.8.6
 
 - Pictures: take a screenshot with your system tool (or copy an image anywhere), then press Ctrl+V in the PDF. The picture lands under the pointer or in the middle of the visible page. You can also insert a file from the toolbar (picture button) or the right-click menu. Drag to move, corner handles to resize in proportion (Shift for free resizing), right-click to turn by 90°, lock, copy, duplicate or delete. Copied pictures paste into other apps as PNG. Pictures are saved as standard stamp annotations that other PDF readers show.
