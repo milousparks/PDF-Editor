@@ -117,6 +117,10 @@ interface PageLayer {
   controls: Map<string, FieldControl>;
   choices?: Map<string, ChoiceControl>;
   marks?: Map<string, HTMLElement>;
+  /** Highlight bands under the printed text, multiplied with the page like a real marker. */
+  highlights?: HTMLElement;
+  /** Comment badges of highlights (above the page, clickable). */
+  badges?: Map<string, HTMLElement>;
   shapes?: ShapeLayer;
   images?: ImageLayer;
   ink: InkLayer;
@@ -2527,6 +2531,7 @@ export class TextEditor extends Component {
           control.dispose?.();
         }
         entry.layer.remove();
+        entry.highlights?.remove();
         this.layers.delete(div);
       }
     }
@@ -4224,11 +4229,27 @@ export class TextEditor extends Component {
       (mark) => mark.page === entry.page.number,
     );
     const ids = new Set(marks.map((mark) => mark.id));
+    const badges = (entry.badges ??= new Map());
     for (const [id, element] of elements) {
       if (!ids.has(id)) {
         element.remove();
         elements.delete(id);
+        badges.get(id)?.remove();
+        badges.delete(id);
       }
+    }
+    // The editor layer sits above the text in its own stacking context, where a
+    // multiply blend has nothing to darken; highlights live directly on the page.
+    const pageDiv = entry.page.div;
+    let highlights = entry.highlights;
+    if (!highlights || highlights.parentElement !== pageDiv) {
+      highlights ??= doc.createElement('div');
+      highlights.className = 'pfs-highlights';
+      pageDiv.insertBefore(
+        highlights,
+        pageDiv.querySelector(':scope > .pfs-text-layer, :scope > .textLayer') ?? entry.layer,
+      );
+      entry.highlights = highlights;
     }
     const { viewport } = entry.page;
     const drawing = this.tool === 'marker' || this.tool === 'scribble' || this.tool === 'eraser';
@@ -4247,7 +4268,11 @@ export class TextEditor extends Component {
       if (!element) {
         element = mark.kind === 'note' ? doc.createElement('button') : doc.createElement('div');
         element.dataset.markId = mark.id;
-        entry.layer.prepend(element);
+        if (mark.kind === 'note') {
+          entry.layer.prepend(element);
+        } else {
+          highlights.append(element);
+        }
         elements.set(mark.id, element);
       }
       element.classList.toggle('is-passive', drawing);
@@ -4256,6 +4281,8 @@ export class TextEditor extends Component {
       }
       element.dataset.signature = signature;
       element.replaceChildren();
+      badges.get(mark.id)?.remove();
+      badges.delete(mark.id);
       const color = cssColor(mark.color);
       const open = (event: Event) => {
         event.preventDefault();
@@ -4289,7 +4316,8 @@ export class TextEditor extends Component {
           width: `${right - left}px`,
           height: `${bottom - top}px`,
           backgroundColor: color,
-          opacity: String(Math.min(1, mark.opacity + 0.15)),
+          // Same strength as the saved annotation (multiplied, so dark text stays dark).
+          opacity: String(mark.opacity),
         });
         element.append(band);
       }
@@ -4303,7 +4331,9 @@ export class TextEditor extends Component {
         setIcon(badge, 'message-square');
         setTooltip(badge, mark.comment);
         badge.addEventListener('click', open);
-        element.append(badge);
+        badge.dataset.markBadge = mark.id;
+        entry.layer.prepend(badge);
+        badges.set(mark.id, badge);
       }
     }
     const popover = this.markPopover;
@@ -5442,6 +5472,7 @@ export class TextEditor extends Component {
         control.dispose?.();
       }
       entry.layer.remove();
+      entry.highlights?.remove();
     }
     this.layers.clear();
     this.toolbar.remove();
