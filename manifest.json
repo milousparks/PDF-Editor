@@ -1,7 +1,7 @@
 {
   "id": "pdf-editor",
   "name": "PDF Editor (extended)",
-  "version": "1000.8.17",
+  "version": "1000.8.18",
   "minAppVersion": "1.13.7",
   "description": "Edit PDF text fields, checkboxes and dropdowns, highlight and comment, draw shapes and add text and ink, with automatic saving and recovery copies. Extended personal build. Desktop beta.",
   "author": "holtsdav",
