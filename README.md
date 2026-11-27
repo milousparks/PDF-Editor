@@ -46,6 +46,10 @@ Requires **Obsidian 1.13.7+**, desktop only. Windows support is unverified.
 
 ## Changelog
 
+### 1000.8.23
+
+- Show or hide comment markers: the note icons and the small badges next to commented highlights. Switch it in More options (⋯), with the command "Show or hide comment markers" or in the settings. Hidden comments stay in the PDF; click a highlight to read its comment. Placing a new note shows the markers again.
+
 ### 1000.8.22
 
 - Encrypted PDFs that open without a password (for example ones with copy or print restrictions) can now be edited. They stay encrypted with the same method and passwords. PDFs that need a password to open stay read only.
