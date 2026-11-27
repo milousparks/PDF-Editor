@@ -488,6 +488,7 @@ export class PdfSurface extends Component {
       pages: () => this.entries.map((entry) => entry.native),
       editablePages: () => this.viewportEntries().map((entry) => entry.native),
       revealPage: (number) => this.go(number),
+      currentPage: () => this.currentPage,
       toolbarHost: () => this.tools,
       answerLineButton: () => this.lineButton,
     };

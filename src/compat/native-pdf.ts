@@ -27,6 +27,8 @@ export interface EditorSurface extends NativePdf {
   pages(): NativePage[];
   editablePages?(): NativePage[];
   revealPage?(number: number): void;
+  /** Page shown at the top of the view. */
+  currentPage?(): number;
   toolbarHost(): HTMLElement;
   answerLineButton(): HTMLButtonElement;
 }

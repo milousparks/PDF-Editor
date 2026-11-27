@@ -18,7 +18,13 @@ Use **Detect answer lines** to find places to type on worksheets. Longer answers
 
 Draw with the pen or highlighter, then select a mark to move or resize it. Hold **Shift** while dragging a corner to keep its proportions. Press **Escape** to cancel a drag.
 
+The pen offers solid, dashed, dash-dot and dotted lines, five thicknesses and any custom color.
+
 Enable **Snap to text** in the highlighter options to follow printed text. When text is unavailable, highlighting falls back to freehand. Optional drawing assistance smooths strokes and snaps held lines and shapes.
+
+### Writing paper
+
+Insert plain, lined, lined-with-margin, squared or dotted pages (sized like the page next to them) from the right-click menu, **More options** or the **Insert page…** command. Pages inserted this way can be deleted again; page changes are saved immediately and are not part of undo.
 
 ### Edit inside your notes
 

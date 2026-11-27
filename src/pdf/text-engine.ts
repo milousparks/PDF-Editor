@@ -1,3 +1,4 @@
+import { isPaperPage } from './paper.ts';
 import {
   PDFDocument,
   PDFHexString,
@@ -91,6 +92,8 @@ export interface TextSnapshot {
   /** Rectangles, ellipses, lines and arrows made by this plugin. */
   shapes?: PdfShape[];
   images?: PdfImage[];
+  /** Page numbers of writing paper pages this editor inserted (they can be removed again). */
+  paperPages?: number[];
 }
 export interface AddedField {
   name: string;
@@ -553,6 +556,7 @@ export async function readTextPdf(bytes: Uint8Array): Promise<TextSnapshot> {
     marks: readMarks(pdf),
     shapes: readShapes(pdf),
     images: readImages(pdf),
+    paperPages: pages.flatMap((page, index) => (isPaperPage(page) ? [index + 1] : [])),
   };
 }
 

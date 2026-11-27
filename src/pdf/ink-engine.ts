@@ -15,6 +15,20 @@ import { referencedObjects, pruneReplacedObjects } from './object-references.ts'
 export const INK_PREFIX = 'pdf-form-studio-ink-';
 export type Point = [number, number];
 export type InkKind = 'marker' | 'scribble';
+/** Pen line styles (solid when absent). */
+export type InkDash = 'dash' | 'dashdot' | 'dot';
+export const INK_DASHES: readonly InkDash[] = ['dash', 'dashdot', 'dot'];
+
+/** Dash pattern in points; dots are zero-length dashes drawn with round caps. */
+export function dashPattern(dash: InkDash, width: number): number[] {
+  const gap = 2 * width + 3;
+  return dash === 'dash'
+    ? [3 * width + 3, gap]
+    : dash === 'dashdot'
+      ? [3 * width + 3, gap, 0, gap]
+      : [0, 2 * width + 2];
+}
+
 export interface InkStroke {
   id: string;
   page: number;
@@ -27,6 +41,7 @@ export interface InkStroke {
   readOnly: boolean;
   annotationId?: string;
   hidden?: boolean;
+  dash?: InkDash;
 }
 
 function text(dict: PDFDict, key: string): string | undefined {
@@ -171,6 +186,10 @@ export function readInk(pdf: PDFDocument): InkStroke[] {
         annotationId:
           ref instanceof PDFRef ? `${ref.objectNumber}R${ref.generationNumber || ''}` : undefined,
       };
+      const dash = dict.get(PDFName.of('PFSDash'))?.toString().slice(1) as InkDash | undefined;
+      if (dash && INK_DASHES.includes(dash)) {
+        stroke.dash = dash;
+      }
       if (number(dict, 'F', 0) & (1 | 2 | 32 | 256)) {
         stroke.hidden = true;
       }
@@ -192,6 +211,9 @@ function appearance(stroke: InkStroke): string {
     'q',
     '/GS0 gs',
     `${decimal(stroke.width)} w 1 J 1 j`,
+    ...(stroke.dash
+      ? [`[${dashPattern(stroke.dash, stroke.width).map(decimal).join(' ')}] 0 d`]
+      : []),
     `${color} RG`,
     `${color} rg`,
   ];
@@ -303,7 +325,9 @@ export function writeInk(
       F: 4,
       Rect: stroke.rect,
       InkList: [points.flat()],
-      BS: { Type: 'Border', W: stroke.width, S: 'S' },
+      BS: stroke.dash
+        ? { Type: 'Border', W: stroke.width, S: 'D', D: dashPattern(stroke.dash, stroke.width) }
+        : { Type: 'Border', W: stroke.width, S: 'S' },
       C: stroke.color,
       CA: stroke.opacity,
       Contents: PDFString.of(stroke.kind === 'marker' ? 'Marker' : 'Scribble'),
@@ -312,6 +336,9 @@ export function writeInk(
     });
     if (stroke.kind === 'marker') {
       dict.set(PDFName.of('IT'), PDFName.of('InkHighlight'));
+    }
+    if (stroke.dash) {
+      dict.set(PDFName.of('PFSDash'), PDFName.of(stroke.dash));
     }
     if (prior) {
       const target = page.node
@@ -323,6 +350,9 @@ export function writeInk(
         if (key.toString() !== '/F' && key.toString() !== '/Contents') {
           target.set(key, value);
         }
+      }
+      if (!stroke.dash) {
+        target.delete(PDFName.of('PFSDash'));
       }
     } else {
       page.node.addAnnot(context.register(dict));
@@ -355,6 +385,7 @@ export function verifyInk(
       output.kind !== stroke.kind ||
       output.width !== stroke.width ||
       output.opacity !== stroke.opacity ||
+      output.dash !== stroke.dash ||
       JSON.stringify(output.points) !== JSON.stringify(points) ||
       JSON.stringify(output.color) !== JSON.stringify(stroke.color) ||
       output.rect.some((value, i) => Math.abs(value - stroke.rect[i]!) > 0.001)

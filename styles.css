@@ -841,20 +841,62 @@
 }
 .pfs-color-grid {
   display: grid;
-  grid-template-columns: repeat(8, 1fr);
+  grid-template-columns: repeat(9, minmax(0, 1fr));
   gap: 4px;
 }
 .pfs-tool-popover .pfs-swatch {
   background: var(--swatch);
   padding: 4px;
-  width: 26px;
-  height: 26px;
+  width: 100%;
+  height: auto;
+  aspect-ratio: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
   border: 2px solid transparent;
   border-radius: 50%;
   box-shadow: none;
 }
 .pfs-swatch-check {
   display: none;
+}
+.pfs-tool-popover .pfs-swatch-custom {
+  position: relative;
+  cursor: pointer;
+  background: conic-gradient(#e53935, #fdd835, #43a047, #1e88e5, #8e24aa, #e53935);
+}
+.pfs-tool-popover .pfs-swatch-custom[aria-pressed='true'] {
+  background: var(--swatch);
+  border-color: var(--interactive-accent);
+}
+.pfs-swatch-custom input {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  opacity: 0;
+  cursor: pointer;
+}
+.pfs-line-styles {
+  display: grid;
+  gap: 6px;
+  grid-template-columns: repeat(4, 1fr);
+}
+.pfs-tool-popover .pfs-line-style {
+  height: 30px;
+  padding: 4px;
+  box-shadow: none;
+  border: 1px solid transparent;
+  background: var(--background-secondary);
+  color: var(--text-normal);
+}
+.pfs-tool-popover .pfs-line-style[aria-pressed='true'] {
+  background: var(--background-modifier-active-hover);
+  border-color: var(--interactive-accent);
+}
+.pfs-line-style svg {
+  width: 100%;
+  height: 12px;
 }
 .pfs-swatch-check svg {
   width: 14px;
@@ -875,6 +917,11 @@
   display: grid;
   gap: 6px;
   grid-template-columns: repeat(4, 1fr);
+}
+.pfs-widths {
+  grid-template-columns: none;
+  grid-auto-columns: minmax(0, 1fr);
+  grid-auto-flow: column;
 }
 .pfs-fonts {
   grid-template-columns: repeat(3, 1fr);
@@ -1610,4 +1657,61 @@ button.pfs-choice.is-round {
 }
 .pfs-mark-delete.mod-warning {
   color: var(--text-error);
+}
+
+/* Insert page dialog */
+.pfs-insert-page .pfs-property-label {
+  margin: 8px 0 6px;
+  color: var(--text-muted);
+  font-size: var(--font-ui-small);
+}
+.pfs-paper-styles {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 8px;
+}
+.pfs-insert-page .pfs-paper-style {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  height: auto;
+  padding: 8px 4px;
+  font-size: var(--font-ui-smaller);
+  white-space: normal;
+  text-align: center;
+  border: 1px solid transparent;
+  background: var(--background-secondary);
+  box-shadow: none;
+}
+.pfs-insert-page :is(.pfs-paper-style, .pfs-page-positions button)[aria-pressed='true'] {
+  border-color: var(--interactive-accent);
+  background: var(--background-modifier-active-hover);
+}
+.pfs-paper-preview {
+  width: 42px;
+  height: 56px;
+}
+.pfs-paper-sheet {
+  fill: #fff;
+  stroke: var(--background-modifier-border);
+}
+.pfs-paper-line {
+  stroke: #9cc4f2;
+  stroke-width: 0.5;
+}
+.pfs-paper-margin {
+  stroke: #f07399;
+  stroke-width: 0.6;
+}
+.pfs-paper-dot {
+  fill: #8c99ad;
+}
+.pfs-page-positions {
+  display: flex;
+  gap: 6px;
+}
+.pfs-insert-page .pfs-page-positions button {
+  flex: 1;
+  border: 1px solid transparent;
 }

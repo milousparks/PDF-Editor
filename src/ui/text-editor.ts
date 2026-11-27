@@ -30,6 +30,10 @@ import { continueList, indent, toggleList } from '../pdf/list-format';
 import type { TextEdit } from '../pdf/list-format';
 import { ShapeLayer, shapeExtent } from './shape-layer';
 import { hitsStroke } from '../pdf/ink-geometry';
+import { INK_DASHES, dashPattern } from '../pdf/ink-engine';
+import { insertPaperPage, removePaperPage } from '../pdf/paper';
+import { InsertPageModal } from './insert-page-modal';
+import type { PenDash } from '../pdf/tool-preferences';
 import { ImageLayer } from './image-layer';
 import { imageMime, imageSize, storedImage } from '../pdf/image-engine';
 import type { PdfImage, QuarterTurn } from '../pdf/image-engine';
@@ -90,7 +94,8 @@ const TOOL_ACTIONS: EditorTool[] = [
   'note',
   'shape',
 ];
-export type EditorAction = EditorTool | 'highlight' | 'underline' | 'strikeout' | 'insert-image';
+export type EditorAction =
+  EditorTool | 'highlight' | 'underline' | 'strikeout' | 'insert-image' | 'insert-page';
 type Point = [number, number];
 type HighlightMode = 'toggle' | 'color' | 'comment';
 
@@ -202,6 +207,7 @@ export class TextEditor extends Component {
   private tool: EditorTool = 'select';
   private markerWidth = 14;
   private penWidth = 2;
+  private penDash: PenDash = 'solid';
   private smoothPen = true;
   private holdShapes = false;
   private holdHighlighter = true;
@@ -1963,6 +1969,7 @@ export class TextEditor extends Component {
         penColor: this.penColor,
         markerColor: this.markerColor,
         penWidth: this.penWidth,
+        penDash: this.penDash,
         markerWidth: this.markerWidth,
         smoothPen: this.smoothPen,
         holdShapes: this.holdShapes,
@@ -2152,7 +2159,7 @@ export class TextEditor extends Component {
             this.updateStatus();
           },
           widths: {
-            values: kind === 'marker' ? [8, 14, 22, 30] : [1, 2, 4, 6],
+            values: kind === 'marker' ? [8, 14, 22, 30] : [0.5, 1, 2, 4, 7],
             value: kind === 'marker' ? this.markerWidth : this.penWidth,
             change: (value) => {
               if (kind === 'marker') {
@@ -2164,6 +2171,24 @@ export class TextEditor extends Component {
               this.updateStatus();
             },
           },
+          ...(kind === 'scribble'
+            ? {
+                styles: {
+                  values: (['solid', ...INK_DASHES] as PenDash[]).map((id) => ({
+                    id,
+                    label: { solid: 'Solid', dash: 'Dashed', dashdot: 'Dash-dot', dot: 'Dotted' }[
+                      id
+                    ],
+                    dash: id === 'solid' ? [] : dashPattern(id, 1.2),
+                  })),
+                  value: this.penDash,
+                  change: (value: string) => {
+                    this.penDash = value as PenDash;
+                    this.rememberPreferences();
+                  },
+                },
+              }
+            : {}),
           close: () => this.closePopover(),
           toggles:
             kind === 'marker'
@@ -2451,6 +2476,13 @@ export class TextEditor extends Component {
     item('file', 'Reload PDF', 'refresh-cw', () => this.requestReload(), {
       disabled: !this.session,
     });
+    item(
+      'pages',
+      'Insert page…',
+      'file-plus-2',
+      () => this.openInsertPage(this.native.currentPage?.() ?? 1),
+      { disabled: !this.session || !!blocked },
+    );
     item('marks', 'Show highlights and comments', 'highlighter', () =>
       commands?.executeCommandById('pdf-editor:show-pdf-highlights'),
     );
@@ -2664,6 +2696,7 @@ export class TextEditor extends Component {
             color: (kind) => (kind === 'marker' ? this.markerColor : this.penColor),
             selected: () => this.selectedStroke,
             smooth: () => this.smoothPen,
+            dash: () => (this.penDash === 'solid' ? undefined : this.penDash),
             shapes: () => this.holdShapes,
             straightHold: () => this.holdHighlighter,
             snapText: () => this.snapToText,
@@ -3010,6 +3043,12 @@ export class TextEditor extends Component {
     if (action === 'insert-image') {
       if (!checking) {
         this.chooseImageFile();
+      }
+      return true;
+    }
+    if (action === 'insert-page') {
+      if (!checking) {
+        this.openInsertPage(this.native.currentPage?.() ?? 1);
       }
       return true;
     }
@@ -3751,10 +3790,48 @@ export class TextEditor extends Component {
       add('Insert image…', 'image-plus', () => this.chooseImageFile({ page, at }));
       next('select');
       add('Select all on page', 'box-select', () => this.selectPage(page));
+      next('pages');
+      add('Insert page…', 'file-plus-2', () => this.openInsertPage(page));
+      if (session.snapshot.paperPages?.includes(page)) {
+        next('danger');
+        add('Delete page', 'file-minus-2', () => this.deletePaperPage(page), { warning: true });
+      }
     }
     // Show the menu first; painting the selection can follow.
     menu.showAtMouseEvent(event);
     this.refresh();
+  }
+
+  /** Pick a paper style and position, then insert a writing page there. */
+  private openInsertPage(page: number): void {
+    new InsertPageModal(this.app, page, this.sessions.preferences.paperStyle, (style, position) => {
+      const session = this.session;
+      if (!session) {
+        return;
+      }
+      const count = session.snapshot.pages.length;
+      const index = position === 'before' ? page - 1 : position === 'after' ? page : count;
+      void this.sessions
+        .updatePreferences({ ...this.sessions.preferences, paperStyle: style })
+        .catch(() => {});
+      void session
+        .editPages((pdf) =>
+          insertPaperPage(pdf, index, style, pdf.getPage(Math.min(page, pdf.getPageCount()) - 1)),
+        )
+        .then(() => this.native.revealPage?.(index + 1))
+        .catch((error) => this.showError(error));
+    }).open();
+  }
+
+  /** Remove a page this editor inserted (with everything on it). */
+  private deletePaperPage(page: number): void {
+    const session = this.session;
+    if (!session) {
+      return;
+    }
+    void session
+      .editPages((pdf) => removePaperPage(pdf, page - 1))
+      .catch((error) => this.showError(error));
   }
 
   /** Show or hide note icons and comment badges in every open PDF (a saved preference). */

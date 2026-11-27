@@ -1,8 +1,8 @@
 import { setAttr } from './dom';
 import { Component } from 'obsidian';
 import type { NativePage } from '../compat/native-pdf';
-import { strokeBounds } from '../pdf/ink-engine';
-import type { InkKind, InkStroke, Point } from '../pdf/ink-engine';
+import { dashPattern, strokeBounds } from '../pdf/ink-engine';
+import type { InkDash, InkKind, InkStroke, Point } from '../pdf/ink-engine';
 import type { PdfColor } from '../pdf/text-format';
 import { hitsStroke, simplifyStroke, resizeInkFrame, resizeInkPoints } from '../pdf/ink-geometry';
 import { screenRectangle, pdfRectangle } from '../compat/native-pdf';
@@ -28,6 +28,8 @@ interface InkOptions {
   remove(id: string): void;
   error(error: unknown): void;
   smooth(): boolean;
+  /** Pen line style; undefined for solid. */
+  dash?(): InkDash | undefined;
   shapes(): boolean;
   straightHold(): boolean;
   snapText?(): boolean;
@@ -45,6 +47,7 @@ interface Gesture {
   tool: EditorTool;
   width: number;
   color: PdfColor;
+  dash?: InkDash;
   points: Point[];
   straight: boolean;
   y: number;
@@ -212,6 +215,7 @@ export class InkLayer extends Component {
     width: number,
     color: PdfColor,
     opacity = kind === 'marker' ? 0.4 : 1,
+    dash?: InkDash,
   ): void {
     path.setAttribute('fill', 'none');
     path.setAttribute('stroke', `rgb(${color.map((c) => c * 255).join(' ')})`);
@@ -219,6 +223,17 @@ export class InkLayer extends Component {
     path.setAttribute('stroke-linecap', 'round');
     path.setAttribute('stroke-linejoin', 'round');
     path.setAttribute('opacity', String(opacity));
+    const scale = this.page.viewport.scale;
+    if (dash) {
+      path.setAttribute(
+        'stroke-dasharray',
+        dashPattern(dash, width)
+          .map((value) => value * scale)
+          .join(' '),
+      );
+    } else {
+      path.removeAttribute('stroke-dasharray');
+    }
     path.style.mixBlendMode = kind === 'marker' ? 'multiply' : 'normal';
   }
   update(page: NativePage): void {
@@ -263,7 +278,14 @@ export class InkLayer extends Component {
       const path = this.path(points);
       control.visual.setAttribute('d', path);
       control.hit.setAttribute('d', path);
-      this.paint(control.visual, stroke.kind, stroke.width, stroke.color, stroke.opacity);
+      this.paint(
+        control.visual,
+        stroke.kind,
+        stroke.width,
+        stroke.color,
+        stroke.opacity,
+        stroke.dash,
+      );
       control.hit.setAttribute(
         'stroke-width',
         String(Math.max(12, stroke.width * page.viewport.scale)),
@@ -591,6 +613,7 @@ export class InkLayer extends Component {
       tool,
       width: this.options.width(kind),
       color: [...this.options.color(kind)],
+      dash: kind === 'scribble' ? this.options.dash?.() : undefined,
       points: [],
       straight: tool === 'marker' && event.shiftKey,
       textWords:
@@ -701,7 +724,7 @@ export class InkLayer extends Component {
           continue;
         }
         path.setAttribute('d', this.path(band.points));
-        this.paint(path, g.tool, band.width, g.color);
+        this.paint(path, g.tool, band.width, g.color, undefined, bands.length ? undefined : g.dash);
       }
     });
   }
@@ -802,6 +825,7 @@ export class InkLayer extends Component {
             g.width,
             g.color,
             this,
+            g.dash,
           );
         }
       }

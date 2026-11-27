@@ -32,7 +32,14 @@ export interface ToolPreferences {
   autosaveDelay: number;
   /** Show note icons and the comment badges of highlights on the page. */
   showCommentMarkers: boolean;
+  /** Pen line style. */
+  penDash: PenDash;
+  /** Background of the last inserted page. */
+  paperStyle: PaperStyle;
 }
+export type PenDash = 'solid' | 'dash' | 'dashdot' | 'dot';
+export type PaperStyle = 'plain' | 'lined' | 'ruled' | 'squared' | 'dotted';
+export const PAPER_STYLES: readonly PaperStyle[] = ['plain', 'lined', 'ruled', 'squared', 'dotted'];
 /** Normalize persisted tool defaults, replacing malformed or out-of-range values with supported defaults. */
 export function loadToolPreferences(value: unknown): ToolPreferences {
   const result: ToolPreferences = {
@@ -61,6 +68,8 @@ export function loadToolPreferences(value: unknown): ToolPreferences {
     highlightOpacity: 45,
     autosaveDelay: 900,
     showCommentMarkers: true,
+    penDash: 'solid',
+    paperStyle: 'lined',
   };
   if (!value || typeof value !== 'object') {
     return result;
@@ -87,7 +96,7 @@ export function loadToolPreferences(value: unknown): ToolPreferences {
     if (
       typeof n === 'number' &&
       Number.isFinite(n) &&
-      n >= 1 &&
+      n >= (key === 'penWidth' ? 0.25 : 1) &&
       n <= (key === 'fontSize' ? 96 : 30)
     ) {
       result[key] = n;
@@ -142,6 +151,12 @@ export function loadToolPreferences(value: unknown): ToolPreferences {
     if (typeof number === 'number' && Number.isInteger(number) && number >= min && number <= max) {
       result[key] = number;
     }
+  }
+  if (['solid', 'dash', 'dashdot', 'dot'].includes(saved.penDash as string)) {
+    result.penDash = saved.penDash as PenDash;
+  }
+  if (PAPER_STYLES.includes(saved.paperStyle as PaperStyle)) {
+    result.paperStyle = saved.paperStyle as PaperStyle;
   }
   if (saved.textFamily === 'sans' || saved.textFamily === 'serif' || saved.textFamily === 'mono') {
     result.textFamily = saved.textFamily;

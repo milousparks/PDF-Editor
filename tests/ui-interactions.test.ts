@@ -177,6 +177,16 @@ async function fixture(
     this.append(el);
     return el;
   };
+  Object.assign(dom.window.Element.prototype, {
+    createSvg(this: Element, tag: string, options: { attr?: Record<string, string> } = {}) {
+      const el = doc.createElementNS('http://www.w3.org/2000/svg', tag);
+      for (const [key, value] of Object.entries(options.attr ?? {})) {
+        el.setAttribute(key, value);
+      }
+      this.append(el);
+      return el;
+    },
+  });
   Object.assign(dom.window.HTMLElement.prototype, {
     createEl: create,
     createDiv(this: HTMLElement, options: object) {
@@ -2026,6 +2036,23 @@ test('snap-to-text creates separate editable marks per row with one shared histo
       [20, 300],
       [100, 300],
     ]);
+    // Pen options: a dotted line in a custom colour.
+    f.tool('Pen');
+    f.doc.querySelector<HTMLButtonElement>('.pfs-properties-button')!.click();
+    f.doc.querySelector<HTMLButtonElement>('[aria-label="Dotted"]')!.click();
+    const picker = f.doc.querySelector<HTMLInputElement>('.pfs-swatch-custom input')!;
+    picker.value = '#336699';
+    picker.dispatchEvent(new f.doc.defaultView!.Event('input', { bubbles: true }));
+    f.doc.querySelector<HTMLButtonElement>('[aria-label="Close tool settings"]')!.click();
+    f.pointer(layer, 'pointerdown', 20, 600);
+    f.pointer(layer, 'pointermove', 60, 620);
+    f.pointer(layer, 'pointerup', 100, 640);
+    const pen = f.session.snapshot.strokes[3]!;
+    assert.equal(pen.dash, 'dot');
+    assert.deepEqual(
+      pen.color.map((value) => Math.round(value * 255)),
+      [0x33, 0x66, 0x99],
+    );
   } finally {
     f.dispose();
   }

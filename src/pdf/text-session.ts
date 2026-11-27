@@ -14,6 +14,7 @@ import type {
   TextSnapshot,
 } from './text-engine.ts';
 import { hash } from './recovery.ts';
+import type { PDFDocument } from 'pdf-lib';
 import {
   normalizeSymbols,
   validColor,
@@ -24,8 +25,8 @@ import {
 import type { PdfColor, PdfFonts, TextFormat } from './text-format.ts';
 import type { BackupPurpose } from './recovery.ts';
 import { InteractionGate } from './interaction-gate.ts';
-import { INK_PREFIX, strokeBounds, validateStroke } from './ink-engine.ts';
-import type { InkKind, InkStroke, Point } from './ink-engine.ts';
+import { INK_DASHES, INK_PREFIX, strokeBounds, validateStroke } from './ink-engine.ts';
+import type { InkDash, InkKind, InkStroke, Point } from './ink-engine.ts';
 import { growRuledBlock, validRuledLayout } from './ruled-text.ts';
 import type { RuledLayout } from './ruled-text';
 import fontkit from '@pdf-lib/fontkit';
@@ -33,7 +34,8 @@ import type { Font } from '@pdf-lib/fontkit';
 import type { FontFamily } from './text-format.ts';
 import { wrapText } from './wrap-text.ts';
 import { readInk } from './ink-engine.ts';
-import { loadPdfDocument } from './pdf-load.ts';
+import { loadPdfDocument, savePdfDocument } from './pdf-load.ts';
+import { incrementalBytes, trackChanges } from './incremental.ts';
 import type { ChoiceField } from './choice-engine.ts';
 import {
   MARK_PREFIX,
@@ -108,6 +110,7 @@ export type CopiedPdfObject =
       rect: Rect;
       points: Point[];
       strokeKind: InkKind;
+      dash?: InkDash;
       width: number;
       color: PdfColor;
       opacity: number;
@@ -1444,6 +1447,7 @@ export class TextSession {
         width: stroke.width,
         color: [...stroke.color],
         opacity: stroke.opacity,
+        ...(stroke.dash ? { dash: stroke.dash } : {}),
       };
     });
   }
@@ -1601,6 +1605,7 @@ export class TextSession {
           opacity: item.opacity,
           rect: strokeBounds(points, item.width, bounds),
           readOnly: false,
+          ...(item.dash && INK_DASHES.includes(item.dash) ? { dash: item.dash } : {}),
         };
         this.snapshot.strokes.push(stroke);
         this.changes.strokes.set(id, stroke);
@@ -1760,6 +1765,7 @@ export class TextSession {
     width = kind === 'marker' ? 14 : 2,
     color?: PdfColor,
     owner: object = this,
+    dash?: InkDash,
   ): InkStroke {
     this.assertAvailable();
     if (this.conflicted) {
@@ -1779,6 +1785,7 @@ export class TextSession {
       opacity: kind === 'marker' ? 0.4 : 1,
       rect: strokeBounds(points, width, bounds),
       readOnly: false,
+      ...(dash && kind === 'scribble' ? { dash } : {}),
     };
     validateStroke(stroke, bounds);
     this.rememberInk(owner);
@@ -1966,6 +1973,61 @@ export class TextSession {
       }
     };
     return this.replaceDocument(restore);
+  }
+
+  /**
+   * Add or remove whole pages. Pending edits are saved first; the page change is
+   * written and verified like a save (the first change backs up the original), then
+   * the document is reloaded. Page changes are not part of undo.
+   */
+  async editPages(edit: (pdf: PDFDocument) => void): Promise<void> {
+    this.assertEditable();
+    await this.save();
+    const operation = async (): Promise<void> => {
+      if (this.dirty) {
+        throw new Error('Wait until your edits are saved, then try again.');
+      }
+      const seed = this.baseline;
+      const pdf = await loadPdfDocument(seed);
+      const tracking = trackChanges(pdf, seed);
+      let bytes: Uint8Array;
+      try {
+        edit(pdf);
+        await pdf.flush();
+        bytes = incrementalBytes(seed, pdf, tracking.tracker) ?? (await savePdfDocument(pdf));
+      } finally {
+        tracking.stop();
+      }
+      const snapshot = await readTextPdf(bytes);
+      if (snapshot.pages.length !== pdf.getPageCount()) {
+        throw new Error('PDF page verification failed.');
+      }
+      if (!equalBytes(await this.store.read(), seed)) {
+        return this.conflict();
+      }
+      this.writing = true;
+      this.status = 'saving';
+      this.notify();
+      try {
+        this.backupPath = await this.store.backup(seed);
+        if (!equalBytes(await this.store.read(), seed)) {
+          return this.conflict();
+        }
+        await this.store.write(bytes);
+        if (!equalBytes(await this.store.read(), bytes)) {
+          return this.conflict();
+        }
+        await this.draftQueue.catch(() => {});
+        this.reset(bytes, snapshot);
+        await this.store.draft?.clear();
+        this.status = 'saved';
+        this.error = '';
+        this.notify();
+      } finally {
+        this.writing = false;
+      }
+    };
+    return this.replaceDocument(operation);
   }
 
   /** Reload/restore own the save queue and reject edits until their snapshot is installed. */

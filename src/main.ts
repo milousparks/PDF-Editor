@@ -206,6 +206,7 @@ export default class PdfEditor extends Plugin {
       ['underline', 'Underline selected text'],
       ['strikeout', 'Strike through selected text'],
       ['insert-image', 'Insert image…'],
+      ['insert-page', 'Insert page…'],
     ] as const) {
       this.addCommand({
         id: `action-${action}`,

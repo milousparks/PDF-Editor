@@ -28,6 +28,12 @@ interface Options {
   color: PdfColor;
   changeColor(color: PdfColor): void;
   widths?: { values: number[]; value: number; change(value: number): void };
+  /** Line styles, each drawn as a sample line. */
+  styles?: {
+    values: { id: string; label: string; dash: number[] }[];
+    value: string;
+    change(value: string): void;
+  };
   text?: {
     font: FontFamily;
     size: number;
@@ -120,6 +126,33 @@ export class ToolPopover extends Component {
         updatePreview();
       });
     }
+    // Any other colour, like Xournal++'s custom colour button.
+    const custom = palette.createEl('label', {
+      cls: 'pfs-swatch pfs-swatch-custom',
+      attr: { 'aria-label': 'Custom color' },
+    });
+    setTooltip(custom, 'Custom color');
+    const picker = custom.createEl('input', { type: 'color' });
+    picker.disabled = !!options.text?.disabled;
+    const syncCustom = () => {
+      const known = colors.some(([, hex]) => hex === cssColor(color));
+      custom.setAttribute('aria-pressed', String(!known));
+      custom.style.setProperty('--swatch', known ? 'transparent' : cssColor(color));
+      if (/^#[0-9a-f]{6}$/i.test(cssColor(color))) {
+        picker.value = cssColor(color);
+      }
+    };
+    this.registerDomEvent(picker, 'input', () => {
+      color = parseColor(picker.value);
+      options.changeColor(color);
+      updateColors();
+      syncCustom();
+      updatePreview();
+    });
+    for (const button of palette.querySelectorAll('button')) {
+      this.registerDomEvent(button, 'click', syncCustom);
+    }
+    syncCustom();
     updateColors();
     updatePreview();
     if (options.widths) {
@@ -144,6 +177,42 @@ export class ToolPopover extends Component {
             item.setAttribute('aria-pressed', String(item === b));
           }
           updatePreview();
+        });
+      }
+    }
+    if (options.styles) {
+      const styles = options.styles;
+      el.createDiv({ cls: 'pfs-property-label', text: 'Line style' });
+      const group = el.createDiv({
+        cls: 'pfs-line-styles',
+        attr: { role: 'group', 'aria-label': 'Line style' },
+      });
+      for (const style of styles.values) {
+        const b = group.createEl('button', {
+          cls: 'pfs-line-style',
+          attr: { 'aria-label': style.label, 'aria-pressed': String(style.id === styles.value) },
+        });
+        setTooltip(b, style.label);
+        const svg = b.createSvg('svg', {
+          attr: { viewBox: '0 0 48 12', width: '48', height: '12' },
+        });
+        svg.createSvg('line', {
+          attr: {
+            x1: '4',
+            y1: '6',
+            x2: '44',
+            y2: '6',
+            stroke: 'currentColor',
+            'stroke-width': '2.5',
+            'stroke-linecap': 'round',
+            ...(style.dash.length ? { 'stroke-dasharray': style.dash.join(' ') } : {}),
+          },
+        });
+        this.registerDomEvent(b, 'click', () => {
+          styles.change(style.id);
+          for (const item of group.querySelectorAll('button')) {
+            item.setAttribute('aria-pressed', String(item === b));
+          }
         });
       }
     }
