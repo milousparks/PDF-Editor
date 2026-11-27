@@ -52,6 +52,11 @@ Requires **Obsidian 1.13.7+**, desktop only. Windows support is unverified.
 
 ## Changelog
 
+### 1000.8.24
+
+- Pen options: dashed, dash-dot and dotted lines, five thicknesses (0.5–7 pt) and a custom colour.
+- Writing paper: insert plain, lined, lined-with-margin, squared or dotted pages from the right-click menu, More options or the "Insert page…" command. Inserted pages can be deleted again via right-click.
+
 ### 1000.8.23
 
 - Show or hide comment markers: the note icons and the small badges next to commented highlights. Switch it in More options (⋯), with the command "Show or hide comment markers" or in the settings. Hidden comments stay in the PDF; click a highlight to read its comment. Placing a new note shows the markers again.
