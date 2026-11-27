@@ -214,6 +214,15 @@ export default class PdfEditor extends Plugin {
       });
     }
     this.addCommand({
+      id: 'toggle-comment-markers',
+      name: 'Show or hide comment markers',
+      callback: () =>
+        void this.sessions.updatePreferences({
+          ...this.sessions.preferences,
+          showCommentMarkers: !this.sessions.preferences.showCommentMarkers,
+        }),
+    });
+    this.addCommand({
       id: 'inspect-pdf-form-fields',
       name: 'Inspect form fields',
       callback: () => {

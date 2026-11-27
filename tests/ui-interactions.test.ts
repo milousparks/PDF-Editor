@@ -233,10 +233,19 @@ async function fixture(
       revealPage: (number: number) => visible.splice(0, visible.length, number),
     });
   }
+  const preferenceListeners = new Set<() => void>();
   const sessions = {
     get: async () => session,
     preferences: loadToolPreferences({ holdShapes: true }),
-    updatePreferences: async () => {},
+    updatePreferences: async (value: object) => {
+      Object.assign(sessions.preferences, value);
+      preferenceListeners.forEach((listener) => listener());
+    },
+    subscribePreferences: (listener: () => void) => {
+      preferenceListeners.add(listener);
+      return () => preferenceListeners.delete(listener);
+    },
+    backupFor: () => undefined,
   } as unknown as VaultSessions;
   const scopes: MockScope[] = [];
   const app = withKeymap
@@ -2285,6 +2294,16 @@ test('selected PDF text is highlighted, commented and saved; notes are placed wi
     popover.querySelector<HTMLButtonElement>('.pfs-mark-done')!.click();
     assert.equal(f.doc.querySelector('.pfs-mark-popover'), null);
     assert.ok(f.doc.querySelector('.pfs-mark-badge'), 'commented highlights show a badge');
+    // More options can hide comment markers; placing a new note shows them again.
+    const hidden = () => f.native.element.classList.contains('pfs-hide-comment-markers');
+    f.doc.querySelector<HTMLElement>('[aria-label="More options"]')!.click();
+    const markers = (
+      globalThis as { lastMenu?: { items: { title: string; checked?: boolean; click(): void }[] } }
+    ).lastMenu!.items.find((item) => item.title === 'Show comment markers')!;
+    assert.equal(markers.checked, true);
+    markers.click();
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    assert.ok(hidden());
 
     // Note tool: click places a note and opens its comment box.
     f.tool('Note');
@@ -2298,6 +2317,7 @@ test('selected PDF text is highlighted, commented and saved; notes are placed wi
     noteText.dispatchEvent(new f.doc.defaultView!.Event('input', { bubbles: true }));
     notePopover.querySelector<HTMLButtonElement>('.pfs-mark-done')!.click();
     assert.ok(f.doc.querySelector('.pfs-mark-note'));
+    assert.ok(!hidden(), 'a new note shows the markers again');
 
     // A note closed without text is discarded.
     f.tool('Note');

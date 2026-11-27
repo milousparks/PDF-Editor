@@ -77,8 +77,13 @@ export class PdfSettingsTab extends PluginSettingTab {
       },
       {
         type: 'group',
-        heading: 'Highlights',
+        heading: 'Highlights and comments',
         items: [
+          this.toggle(
+            'showCommentMarkers',
+            'Show comment markers',
+            'Show note icons and the small comment badges next to commented highlights. When hidden, comments stay in the PDF and in the highlights sidebar; click a highlight to read or edit its comment. You can also switch this from the More options menu or with a command.',
+          ),
           this.slider(
             'highlightOpacity',
             'Highlight strength',
@@ -252,7 +257,8 @@ export class PdfSettingsTab extends PluginSettingTab {
       | 'autoDetectLines'
       | 'flowAnswerLines'
       | 'keepOriginalBackups'
-      | 'openInEditor',
+      | 'openInEditor'
+      | 'showCommentMarkers',
     name: string,
     desc: string,
   ): SettingDefinition {
@@ -300,6 +306,7 @@ export class PdfSettingsTab extends PluginSettingTab {
       | 'flowAnswerLines'
       | 'keepOriginalBackups'
       | 'openInEditor'
+      | 'showCommentMarkers'
       | 'toolbarTopOffset'
       | 'autoDetectPageLimit'
       | 'highlightOpacity'

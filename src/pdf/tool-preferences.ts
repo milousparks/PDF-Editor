@@ -30,6 +30,8 @@ export interface ToolPreferences {
   highlightOpacity: number;
   /** Pause after the last edit before saving automatically, in milliseconds. */
   autosaveDelay: number;
+  /** Show note icons and the comment badges of highlights on the page. */
+  showCommentMarkers: boolean;
 }
 /** Normalize persisted tool defaults, replacing malformed or out-of-range values with supported defaults. */
 export function loadToolPreferences(value: unknown): ToolPreferences {
@@ -58,6 +60,7 @@ export function loadToolPreferences(value: unknown): ToolPreferences {
     openInEditor: false,
     highlightOpacity: 45,
     autosaveDelay: 900,
+    showCommentMarkers: true,
   };
   if (!value || typeof value !== 'object') {
     return result;
@@ -154,6 +157,7 @@ export function loadToolPreferences(value: unknown): ToolPreferences {
     'autoDetectLines',
     'flowAnswerLines',
     'openInEditor',
+    'showCommentMarkers',
   ] as const) {
     if (typeof saved[key] === 'boolean') {
       result[key] = saved[key];

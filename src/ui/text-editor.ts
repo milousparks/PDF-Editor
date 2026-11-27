@@ -326,6 +326,14 @@ export class TextEditor extends Component {
       });
     }
     this.register(usePdfFont(doc));
+    // Hidden comment markers apply to every view of every PDF at once.
+    const applyMarkers = () =>
+      native.element.classList.toggle(
+        'pfs-hide-comment-markers',
+        !sessions.preferences.showCommentMarkers,
+      );
+    applyMarkers();
+    this.register(sessions.subscribePreferences(applyMarkers));
     native.element.classList.add('pdf-form-studio-view');
     this.toolbar = doc.createElement('div');
     this.toolbar.className = 'pdf-form-studio-toolbar';
@@ -2452,6 +2460,9 @@ export class TextEditor extends Component {
       'file-output',
       () => void exportMarks(this.app, this.sessions, file),
     );
+    item('view', 'Show comment markers', 'message-square', () => this.toggleCommentMarkers(), {
+      checked: this.sessions.preferences.showCommentMarkers,
+    });
     item(
       'view',
       'Floating toolbar',
@@ -3364,6 +3375,7 @@ export class TextEditor extends Component {
           at: this.pdfPoint(entry, event.clientX, event.clientY),
           color: MARK_COLORS[0]!.color,
         });
+        this.toggleCommentMarkers(true);
         this.setTool('select');
         this.openMarkPopover(entry, mark.id, true);
       } catch (error) {
@@ -3733,6 +3745,7 @@ export class TextEditor extends Component {
       add('Text box here', 'type', () => this.addTextBoxAt(entry, at));
       add('Note here', 'sticky-note', () => {
         const mark = session.addMark({ page, kind: 'note', at, color: MARK_COLORS[0]!.color });
+        this.toggleCommentMarkers(true);
         this.openMarkPopover(entry, mark.id, true);
       });
       add('Insert image…', 'image-plus', () => this.chooseImageFile({ page, at }));
@@ -3742,6 +3755,16 @@ export class TextEditor extends Component {
     // Show the menu first; painting the selection can follow.
     menu.showAtMouseEvent(event);
     this.refresh();
+  }
+
+  /** Show or hide note icons and comment badges in every open PDF (a saved preference). */
+  private toggleCommentMarkers(show = !this.sessions.preferences.showCommentMarkers): void {
+    if (show === this.sessions.preferences.showCommentMarkers) {
+      return;
+    }
+    void this.sessions
+      .updatePreferences({ ...this.sessions.preferences, showCommentMarkers: show })
+      .catch((error) => this.showError(error));
   }
 
   /** Paste the newest copy at a point: objects copied here, else an image on the clipboard. */

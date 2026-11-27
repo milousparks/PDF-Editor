@@ -1246,6 +1246,10 @@ button.pfs-choice.is-round {
   width: 70%;
   height: 70%;
 }
+.pfs-hide-comment-markers .pfs-mark-badge,
+.pfs-hide-comment-markers .pfs-mark-note {
+  display: none;
+}
 .pfs-mark-note.is-passive,
 .is-passive .pfs-mark-badge {
   pointer-events: none;
